@@ -1,0 +1,77 @@
+---
+title: "STAT-581A3 Homework 2"
+author: "Sam Armstrong"
+date: "10/2/2019"
+output: pdf_document
+---
+```{r}
+library(car)
+data <- read.csv(file="C:/Users/Sam/STAT581_A3/BodyFat.csv", quote = "'")
+```
+1. 
+```{r}
+cor(data)
+#pairs(data)
+```
+2.
+```{r}
+ModelFull <- lm(BodyFat ~ Triceps + Thigh + Midarm, data=data)
+summary(ModelFull)
+```
+
+3. 
+```{r}
+lht(ModelFull, matrix(c(0, 1, 0, 0,
+                        0, 0, 1, 0,
+                        0, 0, 0, 1), nrow=3, byrow=TRUE), rhs=c(0.0, 0.0, 0.0))
+```
+Since the P-value is 7.343e-06 we reject the null hypothesis and conclude that a significant difference exists between a linear model that includes the variables' coefficients and a linear model where the coefficients are set to zero. The F-Statistic value of 21.516 (less than 21.52) suggests that adding the variables' (Triceps + Thigh + Midarm) coefficients improves the linear model. 
+
+4. 
+```{r}
+lht(ModelFull, c(0, 1, 0, 0), rhs=c(2.0))
+```
+Since the P-value is 0.4502 we fail to reject the null hypothesis and are unable to conclude there is a significant difference between a linear model with the variable Triceps' coefficient and a linear model where the Tricep coefficient is set to 2. The F-Statistic value is 0.5991, but is unreliable due to the P-value.
+
+5.
+```{r}
+lht(ModelFull, matrix(c(0, 0, 1, 0,
+                        0, 0, 0, 1), nrow=2, byrow=TRUE), rhs=c(0.0, 0.0))
+```
+Since the P-value is 0.04995 we reject the null hypothesis and conclude that a significant difference exists between a linear model that includes the variables Thigh and Midarm's coefficients and a linear model where the coefficients are set to zero. The F-Statistic value of 3.6352 (less than 21.52) suggests that adding the variables' (Thigh + Midarm) coefficients improves the linear model.
+
+6. 
+```{r}
+#ModelFull <- lm(BodyFat ~ Triceps + Thigh + Midarm, data=data)
+#summary(ModelFull)
+ModelFull <- lm(BodyFat ~ Triceps + Midarm, data=data)
+summary(ModelFull)
+```
+After thigh (highest P-value of 0.285) was dropped all the models variables P-value became significant (less than 0.05)
+
+7. Although thigh was positively correlated with bodyfat it was not a good predictor of bodyfat. This could be because bodyfat and thigh have a mutual relationship with other (confounding) variables. To prove this mutual relationship doesn't exist we would have to show bodyfat or thigh is not related to Triceps or Midarm. Based on the correlation table in problem 1 this seems unlikely and intuitively it makes sense that the size of one body part like the thigh would be related to the size of another bodypart like the midarm or triceps.  
+
+8. 
+```{r}
+#plot(ModelFull, which=c(1, 2))
+```
+In the residuals vs fitted graph the regression line (red line) almost matches the horizontal line (dotted line) and suggests there is a linearity and constant variance of the model's residuals over the spread of fitted values.
+
+In the Normal QQ Plot the regression line fits the data point well suggesting the normality of the residuals (the model's residuals do not increase as the the quantiles increase.)
+
+9. 
+```{r}
+predict(ModelFull, newdata=data.frame(Triceps=20, Midarm=25))
+predict(ModelFull, interval="confidence")
+predict(ModelFull, interval="prediction")
+```
+
+10.
+```{r}
+outlierTest(ModelFull)
+rstudent = outlierTest(ModelFull)$rstudent
+n = nrow(data);
+k = ncol(data) - 1;
+bonAdjPVal = 2*n*(1-pt(abs(rstudent), df = n-k-2));bonAdjPVal
+```
+The test statistic rstudent is -1.818309, the unadjusted p-value is 0.087787 and the Bonferonni adjusted p-value is 1.780798. Based on the Bonferonni adjusted p-value we cannot conclude that this observation is an outlier (1.780798 > 0.05).

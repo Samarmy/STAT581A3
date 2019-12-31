@@ -1,0 +1,185 @@
+---
+title: "STAT-581A3 Assignment 4"
+author: "Sam Armstrong"
+date: "12/5/2019"
+output: pdf_document
+---
+
+```{r}
+library(MuMIn)
+library(car,warn.conflicts=FALSE,quietly=TRUE)
+library(MASS,warn.conflicts=FALSE,quietly=TRUE)
+library(epitools,warn.conflicts=FALSE,quietly=TRUE)
+fitness_data <- read.csv(file="/s/chopin/k/grad/sarmst/stat581A3/fitness2.csv", quote = "'")
+genes_data <- read.csv(file="/s/chopin/k/grad/sarmst/stat581A3/Genes.csv", quote = "'")
+heart_data <- read.csv(file="/s/chopin/k/grad/sarmst/stat581A3/CKheart.csv", quote = "'")
+```
+
+1.A)
+```{r}
+FullModel <-lm(Y~. , data = genes_data)
+NullModel <-lm(Y~1, data = genes_data)
+Model1 <- NullModel
+add1(Model1, scope = FullModel, test = "F")
+Model1 <-update(Model1,~.+G5)
+# summary(Model1)
+```
+
+G5 would be the first variable to add because it has the lowest AIC (43.879) when added to the empty model.
+
+1.B)
+```{r}
+add1(Model1, scope = FullModel, test = "F")
+Model1 <-update(Model1,~.+G4)
+```
+```{r}
+add1(Model1, scope = FullModel, test = "F")
+Model1 <-update(Model1,~.+G7)
+```
+```{r}
+add1(Model1, scope = FullModel, test = "F")
+Model1 <-update(Model1,~.+G2)
+```
+```{r}
+add1(Model1, scope = FullModel, test = "F")
+summary(Model1)
+```
+
+The criteria used to determine the variables for the best model was adding the variable that decreased the AIC the most.
+
+1.C)
+```{r}
+options(na.action = "na.fail")
+dr = dredge(FullModel, rank = "AICc");
+```
+
+*Didn't include dredge output due to length. The top model from 1.B) was Y ~ G5 + G4 + G7 + G2 and the top model from 1.C) was Y ~ G4 + G7 + G2 so the only difference was the variable G5. 
+
+1.D)
+```{r}
+importance(dr)
+```
+
+G5 was the most important variable and it was not included in the top model from 1.C) Y ~ G4 + G7 + G2 the likely reason being G5 has a colinnearity with the other variables in the model so it doesn't have as much as importance as it would in a model with variables with no colinearity.
+
+1.E)
+```{r}
+TopModel <-lm(Y~G2+G4+G7 , data = genes_data)
+vif(TopModel)
+vif(Model1)
+```
+
+There aren't any concerns for the top model Y ~ G4 + G7 + G2 with all of the VIF's being close to 1. Adding the G5 variable to the model increases the VIF of G5 and G7 to approximatly 10 indicating a collinearity.
+
+1.F)
+```{r}
+# influence.measures(TopModel)
+```
+
+*Didn't include influence.measures output due to length. The observation with the highest influence appears to be observation 2 with the highest absolute cook's distance (0.78), DFFITS (1.9379), and DFBETAS (-0.89527, -0.68352, 1.30676, 0.94407).  
+
+```{r}
+Resids <-data.frame(RawRes =resid(TopModel), StdRes =stdres(TopModel), RStdRes =rstudent(TopModel)); Resids
+plot(TopModel, which =c(1))
+plot(TopModel, which =c(2))
+```
+
+Based on the residuals output and the Residuals vs Fitted and Normal Q-Q plots it appears that observation 22 is most likely to be the outlier with the output and plots showing the residuals of observation 22 being much higher than the other observations.
+
+2.A)
+```{r}
+FullModel <-lm(Oxy~Age+Sex+RstPulse+Weight , data = fitness_data)
+options(na.action = "na.fail")
+# dredge(FullModel, rank = "AICc")
+TopModel <-lm(Oxy~Age+RstPulse , data = fitness_data)
+summary(TopModel)
+```
+
+The rationale for selecting this model was using the dredge function and picking the model with the lowest AICc that included Age and RstPulse. Requiring Age and RstPulse in the model makes since because a person's Age and RstPulse are good predictors and probably directly correlated with how fit a person is (Oxy).  
+
+2.B)
+```{r}
+TopModelInteraction <-lm(Oxy~Age*RstPulse , data = fitness_data)
+summary(TopModelInteraction)
+# AICc(TopModelInteraction)
+```
+
+The Age*RstPulse here represents an interaction between Age and RstPulse so the model is looking at both variables in respect to each other e.g. the Age is really low so having a low RstPulse is less important in determining the Oxy.
+
+2.C)
+```{r}
+#Iris is 27
+# influence.measures(TopModelInteraction)
+# plot(TopModelInteraction, which =c(1:2,4:5))
+```
+
+*Didn't include influence.measures and plots output due to length. The DIFFIT of Iris (observation 27) is -1.89647. Iris looks like the greatest concern in the Cook's Distance and Residuals vs Leverage plots where it shows that Iris is heavily influencing the lm with the highest Cook's Distance.
+
+2.D)
+```{r}
+TopModelInteractionIris <-lm(Oxy~Age*RstPulse , data = fitness_data[-c(27),])
+TopModelIris <-lm(Oxy~Age+RstPulse , data = fitness_data[-c(27),])
+summary(TopModelIris)
+summary(TopModelInteractionIris)
+AICc(TopModelIris)
+AICc(TopModelInteractionIris)
+```
+
+Yes I would include RstPulse*Age in the model because it increases the adjusted R-squared from 0.2472 to 0.3268 so the model explains the data better with the interaction. Also the AICc of the model decreases from 184.3494 to 182.7621 after adding the interaction which suggests the same conclusion.
+
+2.E)
+```{r}
+newData <-data.frame(Name =c("Ben"), Sex =c("M"), Age=c(43), Weight=c(77.5), RstPulse=c(48))
+predict(TopModelInteractionIris, newData, interval="predict") 
+```
+
+The prediction interval has a width of about 19 which seems fairly wide.
+
+3.A)
+```{r}
+Model1 <-glm(cbind(withHA, withoutHA)~CK, family =binomial(link = "logit"), data = heart_data)
+heart_data$rate <- heart_data$withHA/(heart_data$withHA+heart_data$withoutHA)
+summary(Model1)
+```
+
+3.B)
+```{r}
+plot(rate~CK, data = heart_data)
+ratenew <-seq(0, 500, 10)
+pred <-predict(Model1,list(CK = ratenew), type = "response")
+lines(pred~ratenew)
+```
+
+3.C)
+```{r}
+# ratioTable = as.matrix(heart_data[, 2:3])
+# rownames(ratioTable)<-  heart_data[, 1]  
+# oddsratio(ratioTable, method = "wald")
+exp(Model1$coef)
+exp(confint(Model1))
+```
+
+3.D)
+```{r}
+newData1 <-data.frame(CK =c(70))
+newData2 <-data.frame(CK =c(80))
+predict(Model1, newData1, type = "response") 
+predict(Model1, newData2, type = "response") 
+```
+
+The odds of having a heart attack with a CK level of 70 is ~36% while a CK level of 80 is ~45% showing that increasing the CK at this level by just 10 increases the likelihood of a heart attack by 8%.
+
+3.E)
+```{r}
+NullModel <-glm(as.matrix(heart_data[, 2:3])~1, family =binomial(link = "logit"), data = heart_data)
+1-logLik(Model1)/logLik(NullModel)
+```
+
+3.F)
+```{r}
+probs <-seq(0.0, 1.0, 0.1)
+ld <-dose.p(Model1, cf = 1:2, p = probs)
+ld
+```
+
+The CK level at 148.85841 would give a 90% likelihood of causing a heart attack.

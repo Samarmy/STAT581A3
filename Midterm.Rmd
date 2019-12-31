@@ -1,0 +1,140 @@
+---
+title: "STAT-581A3 Midterm"
+author: "Sam Armstrong"
+date: "10/30/2019"
+output: pdf_document
+---
+```{r}
+library(ggplot2)
+library(carData)
+library(car)
+library(emmeans)
+library(dplyr, warn.conflicts = FALSE)
+library(MuMIn)
+herb_data <- read.csv(file="/s/chopin/k/grad/sarmst/stat581A3/HerbicideDegrade.csv", quote = "'")
+fitness_data <- read.csv(file="/s/chopin/k/grad/sarmst/stat581A3/Fitness.csv", quote = "'", row.names=1)
+```
+
+1.A)
+```{r}
+ggplot(herb_data, aes(factor(Week), ppm, fill=factor(Depth))) + geom_boxplot() + facet_grid(Herbicide ~ .)
+```
+
+1.B)
+```{r}
+herb1 = subset(herb_data, Depth == 1)
+```
+
+1.C)
+```{r}
+qplot(Week, ppm, shape = Herbicide, color = Herbicide, data = herb1) + geom_smooth(method = "lm", se = FALSE)
+```
+```{r}
+# model1 <- lm(ppm ~ Herbicide, data = herb1)
+# anova(model1)
+```
+
+1.D) The researchers do not need to fit this model which only uses the herbicide categorical factor variables because this single input variable is not enough to explain the data better than a model with no input variables (more input variables are likely needed e.g week). The ANOVA F-test can be used to confirm this.
+
+1.E)
+```{r}
+model2 <-lm(ppm ~ Week, data = herb1)
+model3 <-lm(ppm ~ Herbicide + Week, data = herb1)
+model4 <-lm(ppm ~ Herbicide + Week + Herbicide*Week, data = herb1)
+summary(model4)
+Anova(model4, type = 3)
+```
+I choose the model with interaction (model4) because it had the highest adjusted R-Squared which indicates this model explains the data better than the other models.
+
+1.F)
+```{r}
+modelSMetolachl <-lm(ppm ~ Week, data = subset(herb1, Herbicide == "s-metolachlor"));modelSMetolachl
+modelDicamba <-lm(ppm ~ Week, data = subset(herb1, Herbicide == "dicamba"));modelDicamba
+```
+Yes we can conclude the effect of Weeks depends on Herbicide because in the model with interaction the Herbicide:Week coefficient has a p-value of 0.0087 (less than 0.05) which indicates that the Week coefficient depends on the Herbicide coefficient (and vice versa). Also the different slopes (Weeks coefficient) and intercepts for the linear models of s-metolachlor and dicamba indicate there is a different effect of Weeks for the two Herbicides. 
+
+1.G)
+```{r}
+emmeans(model4,  ~ Herbicide)
+```
+Dicambia has a negative estimated marginal mean because its range in weeks is 1-3 and its linear regression goes to negative ppm after 3 weeks (plotted in 1.C) and s-metolachlor's range in weeks is 1-7 so the average overall Week value (1-7 week range) plugged into the dicamba model with interaction causes its EMM to be negative.
+
+1.H.)
+```{r}
+herb2 = subset(herb1, Herbicide=="s-metolachlor")
+```
+
+1.H.i)
+```{r}
+modelWeek <- lm(ppm ~ Week, data=herb2);
+plot(modelWeek, which=c(1))
+```
+
+1.H.ii)
+```{r}
+modelWeekDegree2 <- lm(ppm ~ Week + I(Week^2), data=herb2);
+plot(modelWeekDegree2, which=c(1))
+```
+
+1.H.iii)
+```{r}
+anova(modelWeek, modelWeekDegree2)
+```
+Since the P-value is less than 0.05 there is evidense that the 2nd order captures more data.
+
+1.H.iv)
+```{r}
+qplot(Week, ppm, data = herb2) + geom_smooth(method = "lm", formula = y ~ x + I(x^2), se = FALSE)
+```
+
+1.H.v) In the normal Q-Q plot the line doesn't fit very linearly in the theoretical quantiles 2-3. You could possibly resolve this issue by removing the outlier values.
+
+2.A)
+```{r}
+round(cor(select(fitness_data,-c(Sex))), 4)
+# pairs(select(fitness_data,-c(Sex)))
+```
+
+2.B) I would choose runtime because it has the highest absolute correlation with Oxy.
+
+2.C)
+```{r}
+modelFitness = lm(Oxy ~ Runtime + Age, data=fitness_data)
+```
+
+2.C.i)
+The value of the estimated slope associated with age (-0.1507) implies the older you are the lower your Oxy levels are likely to be.
+
+2.C.ii)
+```{r}
+# summary(modelFitness)
+```
+The P-value of 0.122 (less than 0.05 )for Age implies it is not a significant input variable for determining Oxy in this model, i.e. could be left out of the model without significantly affecting the models ability to capture the data.
+
+2.C.iii) 
+```{r}
+# lht(modelFitness, matrix(c(0, 1, 0,
+#                            0, 0, 1), nrow=2, byrow=TRUE), rhs = c(0.0, 0.0))
+```
+The null hypothesis is Beta_1 = Beta_2 = 0.  
+
+2.D)
+```{r}
+# modelFull = lm(Oxy ~ ., data = fitness_data)
+# options(na.action = "na.fail")
+# dredge(modelFull, rank = "AIC", extra = c('R^2'))
+```
+
+2.D.i)
+```{r}
+modelMinAIC = lm(Oxy ~ Age + MaxPulse + RunPulse + Runtime + Sex, data = fitness_data)
+summary(modelMinAIC)
+```
+
+2.D.ii)
+```{r}
+sort(abs(rstudent(modelMinAIC)), decreasing = TRUE)[1:3]
+```
+
+2.D.iii)
+I would use the model with the smallest AIC from part D because it has a lower AIC value and a higher adjusted r-squared value than the model from part C. The lower AIC means the model is better at fitting the data and has a simplistic model. The higher adjusted r-squared indicates the model explains the data better.

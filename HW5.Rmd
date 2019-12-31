@@ -1,0 +1,95 @@
+---
+title: "STAT-581A3 Assignment 5"
+author: "Sam Armstrong"
+date: "12/8/2019"
+output: pdf_document
+---
+
+```{r setup, echo=FALSE, message=FALSE}
+library(tidyverse)
+library(rnoaa)
+library(maps)
+library(MuMIn)
+library(dplyr)
+
+key <- "eFXFjwOdrhqjKLwvoOtUiJSagtzpCoVR"  
+```
+
+Import and format data.
+```{r API, inlcude=FALSE}
+CO_GSOYstations <- ncdc_stations(datasetid = 'GSOY',locationid = "FIPS:08",limit = 1000, 
+                                      startdate = "2017-12-01", enddate =  "2018-01-31",token = key)
+stations <- CO_GSOYstations$data  # this converts the data download to only include the data as a data frame
+
+CO_GSOYsnow <- ncdc(datasetid = "GSOY", locationid = "FIPS:08", datatypeid = "DSNW", 
+                         startdate = '2017-12-01', enddate = '2018-01-31', limit=1000, token=key)
+snow <- CO_GSOYsnow$data
+
+colnames(stations)[7] <- "station_id"
+colnames(snow)[3] <- "station_id"
+```
+
+A) Map of all GSOY Stations
+```{r, out.height="200px"}
+ggplot(stations,aes(x=longitude,y=latitude)) + geom_point() + borders("county","colorado",colour="grey70")
+```
+
+B) Join datasets
+```{r, inlcude = FALSE}
+data_set = inner_join(stations, snow, by = "station_id")
+str(data_set)
+```
+
+C) County with station with most days of snow fall.
+```{r, out.height="200px"}
+max = data_set[which.max(data_set$value),]
+
+if (require("maps")) {
+
+ia <- map_data("county", "colorado")
+mid_range <- function(x) mean(range(x))
+seats <- do.call(rbind, lapply(split(ia, ia$subregion), function(d) {
+  data.frame(lat = mid_range(d$lat), long = mid_range(d$long), subregion = unique(d$subregion))
+}))
+
+ggplot(ia, aes(long, lat)) + geom_polygon(aes(group = group), fill = NA, colour = "grey60") + geom_point(data = max,aes(x=longitude,y=latitude)) + geom_text(aes(label = subregion), data = seats, size = 2, angle = 45)
+}
+```
+
+Lake County contains the station with the largest number of days of snowfall. Note: It's hard to see what county it is on the map so I checked using google maps.
+
+D) Pairs of Quantitative
+```{r, out.height="200px"}
+data_set$sqrt = sqrt(data_set$value)
+pairs(data_set[, c(1,4,6,9,12,15)])
+# cor(data_set[, c(1,4,6,9,12,15)])
+```
+
+Based on the pairs plot and a correlation matrix is appears that the only quantitative variable with a strong correlation (higher than 0.5) to the value variable and the sqrt(value) variable is elevation (correlations of 0.68 and 0.71 respectively). It does appear that by square rooting the snow fall value that it correlates better than the unsquarerooted value, possibly suggesting a nonlinear relationship between elevation and snowfall is better at representing the data than a linear relationship.
+
+
+E) Model to predict days of snow, hint R^2 above .7
+```{r}
+TopModel = lm(sqrt~elevation*longitude*latitude, data = data_set)
+summary(TopModel)
+# plot(TopModel)
+```
+
+I choose the top model based on the highest adjusted R-squared. After trying different combinations of the four variables: elevation, longitude, latitude, and datacoverage on models without interaction (which all returned models with an adjusted R-squared of less than 0.7) I used different combinations of the variables with interactions and found that using an interaction with elevation and longitude that included the latitude variable (elevation\*longitude + latitude) returned an adjusted R-squared value of 0.7015. I was able to increase the adjusted R-squared a little more to 0.7094 by adding an interaction between all three variables (elevation\*longitude\*latitude) which I chose as the top model.
+
+F) Map of residuals, color for size of residuals
+```{r, out.height="180px"}
+ggplot(data_set,aes(x=longitude,y=latitude, size=exp(rstandard(TopModel)))) + geom_point() + borders("county","colorado",colour="grey70")
+```
+
+Note: I used the exponent function on the standardized residuals so that it scales better visually because it was difficult to tell which datapoints were bigger using a linear scale.
+
+G) Largest positive residuals
+```{r}
+data_set$residuals <- TopModel$residuals
+top_four = data_set[order(-data_set$residuals)[1:4],]; top_four
+ggplot(top_four,aes(x=longitude,y=latitude)) + geom_point() + borders("county","colorado",colour="grey70")
+colMeans(data_set[, c(1,4,6,9,12,15)])
+```
+
+Examining the data of the top four stations based on positive residuals it seems that these stations have the commonalities of being located near/on the rocky mountains and having a high elevation (each have a 2,000+ elevation when the average elevation for the 183 stations is 1926).

@@ -1,0 +1,89 @@
+---
+title: "STAT-581A3 Assignment 3"
+author: "Sam Armstrong"
+date: "10/18/2019"
+output: pdf_document
+---
+```{r}
+library(carData)
+library(car)
+library(ggplot2)
+library(emmeans)
+grain <- read.csv(file="/s/chopin/k/grad/sarmst/stat581A3/Grain.csv", quote = "'")
+drug <- read.csv(file="/s/chopin/k/grad/sarmst/stat581A3/DrugTest.csv", quote = "'")
+```
+
+1.A)
+```{r}
+plot(grain)
+```
+
+1.B)
+```{r}
+GrainLinearModel <- lm(Yield ~ Days, data=grain);
+summary(GrainLinearModel)
+# plot(GrainLinearModel, which=c(1))
+```
+The plot shows that the residuals are negative when the fitted values are small, are positive when the fitted values are in the middle, and are negative when the fitted values are large. The residual plot suggest a non-linearity of variance and that there are problems with the linear model.
+
+1.C)
+```{r}
+GrainQuadModel <- lm(Yield ~ Days + I(Days^2), data=grain);
+summary(GrainQuadModel)
+# plot(GrainQuadModel, which=c(1))
+```
+The plot shows that the regression line is close to the horizontal line of 0 residuals. The curves on the larger fitted values could be a result of outliers. This model suggests there could be a linearity of variance. 
+
+1.D)
+```{r}
+GrainCubicModel <- lm(Yield ~ Days + I(Days^2) + I(Days^3), data=grain);
+summary(GrainCubicModel)
+# plot(GrainCubicModel, which=c(1))
+```
+This residuals vs fitted plot is almost identical to the one in question 1.C). The plot's regression line is close to the horizontal line of 0 residuals. The curves on the higher fitted values could be a result of outliers. This model suggests there could be a linearity of variance. 
+
+1.E)
+```{r}
+anova(GrainQuadModel, GrainCubicModel)
+```
+Since the P-value (0.6997) is greater than alpha=0.05 the simpler quadratic model is the better at capturing the data then the more complex cubic model.
+
+1.F) I would choose the quadratic model because it's residuals over fitted values appear linear (not true for the linear model) and it get's about the same R-squared as cubic with one less input variable.
+
+2.A)
+
+```{r}
+par(mfrow=c(1,2))
+boxplot(PreTreatment~Drug,data=drug) 
+boxplot(PostTreatment~Drug,data=drug)
+```
+
+```{r}
+ggplot(drug, aes(x=PostTreatment, y=PreTreatment, shape=Drug, color=Drug)) + geom_point() + geom_smooth(method=lm, se=FALSE, fullrange = TRUE)
+```
+
+2.B)
+```{r}
+DrugModel = lm(PostTreatment ~ Drug, data=drug);
+Anova(DrugModel, type = 3)
+DrugModel.emm = emmeans(DrugModel, pairwise ~ Drug); DrugModel.emm
+```
+We can conclude there is a significant difference between drug A and F since the P-value (0.0403) is less than 0.05. (The P-value of comparison D - F was also close to 0.05 (0.0754))
+
+2.C)
+```{r}
+DrugModel.noInteraction = lm(PostTreatment ~ Drug + PreTreatment, data=drug);
+Anova(DrugModel.noInteraction, type = 3)
+DrugModel.noInteraction.emm = emmeans(DrugModel.noInteraction, pairwise ~ Drug); DrugModel.noInteraction.emm
+```
+We can't conclude any difference between the drugs because all of the pairwise comparisons' P-values were greater than 0.05.
+
+2.D) When looking at the boxplots of PreTreatment there is a clear difference between the boxplot for Drug F and the boxplots for drugs A and D. A fair comparison of the drugs would have a similar distribution of PreTreatments for all 3 drugs, which doesn't appear to be the case. Using a selection of patients with higher then average PreTreatments could result in an unfair boost to the PostTreatment results.
+
+2.E)
+```{r}
+DrugModel.diff = lm((PostTreatment-PreTreatment) ~ Drug, data=drug);
+Anova(DrugModel.diff, type = 3)
+DrugModel.diff.emm = emmeans(DrugModel.diff, pairwise ~ Drug); DrugModel.diff.emm
+```
+We can't conclude any difference between the drugs because all of the pairwise comaparisons' P-values were greater than 0.05.

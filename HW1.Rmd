@@ -1,0 +1,96 @@
+---
+title: "STAT-581A3 Homework 1 Sam Armstrong"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+Importing Data 
+
+```{r}
+InData <- read.csv(file="C:/Users/Sam/ASCII-comma/CH12/ex12-56.TXT", quote = "'", row.names = 1)
+summary(InData)
+```
+
+1. Show the pairwise scatterplots between all 4 variables (Y=Time, X1=PROTEIN, X2=ANTIBIO, X3=SUPPLEM)
+
+```{r}
+pairs(InData)
+```
+
+2. Calculate pairwise (Pearson) correlations between all 4 variables.
+
+```{r}
+cor(InData)
+```
+
+3. Run the 3 simple linear regressions of Time vs each of the above three predictor variables.  Show the parameter estimates (“Coefficients” table) and R2 values.  You can just copy/paste the relevant output from R. 
+
+```{r}
+ModelPROTEIN <- lm(TIME ~ PROTEIN, data=InData)
+ModelANTIBIO <- lm(TIME ~ ANTIBIO, data=InData)
+ModelSUPPLEM <- lm(TIME ~ SUPPLEM, data=InData)
+summary(ModelPROTEIN)
+summary(ModelANTIBIO)
+summary(ModelSUPPLEM)
+```
+
+4. Now run multiple regression of Time on all three predictor variables.  Show the parameter estimates (“Coefficients” table) and R2 value.  We will use this the “full” model for the remaining questions.
+
+```{r}
+ModelFull <- lm(TIME ~ SUPPLEM + PROTEIN + ANTIBIO, data=InData)
+summary(ModelFull)
+```
+
+5. Note that (1) the slope estimates from the simple linear regressions are the same as the slope estimates from the “full” model and (2) the R2 values from the simple linear regressions sum to the R2 value from the “full” model.  In general, this will not be the case (as we saw with the Rice Example).  What is different about this data (as compared to the Rice Example)?  Hint: Consider the result of question 2.
+
+This data has zero correlation between it's variables SUPPLEM, PROTEIN, and ANTIBIO and the Rice data has a non-zero correlation with it's variables ht and tillers.
+
+6. Create plots of (A) Residuals vs Fitted values and (B) QQplot of residuals.  Include these plots in your assignment.  Thinking about model assumptions, what do we learn from each plot?  (4 pts)
+
+```{r}
+plot(ModelFull)
+```
+
+In the Residuals vs Fitted graph the regression (red line) almost matches the horizontal 0 residual line. This suggests that a linear relationship is reasonable for the full model. The data points seem to be evenly distributed around the horizontal 0 residual line suggesting a constant variance in the full model. There are a few points that seem to be outliers which could indicate problems with the full model.
+
+In the Normal Q-Q Plot the data seems to be evenly distributed around the regression (dotted line) between the Quantiles -1 and 1. Outside of -1 and 1 there are a few outliers that could indicate problems with the full model for values in the higher quantiles (outliers).
+
+7. Interpret the R2 value from “full” model.
+
+The R2 value of 0.9007 indicates that the full model explains the variability of the data around the linear regression very well. Also the the full model fits the data better than the individual models for the three variables (PROTEIN, SUPPLEM, ANTIBIO).
+
+8. Give a one-sentence interpretation of estimated partial regression coefficient for ANTIBIO in the multiple regression.
+
+The ANTIBIO coefficient is -4 suggesting that the time is inversely related to the ANTIBIO data by a magnitude of 4 when the predictor variables for SUPPLEM and PROTEIN are held constant.
+
+9. Working from the “full” model, for each of the four Beta’s (intercept and three partial regression coefficients) give a p-value for the hypothesis that the true parameter value is zero vs a two-sided alternative.  In other words, test H0: Betai = 0 versus HA: Betai not-equal to 0.
+
+c2 <-matrix(c(1, 0, 0, 0,
+              0, 1, 0, 0,
+              0, 0, 1, 0, 
+              0, 0, 0, 1), nrow=4, byrow=TRUE)
+lht(ModelFull, c2, rhs=c(0.0))
+
+```{r}
+library(car)
+lht(ModelFull, c(1, 0, 0, 0), rhs=c(0.0))
+lht(ModelFull, c(0, 1, 0, 0), rhs=c(0.0))
+lht(ModelFull, c(0, 0, 1, 0), rhs=c(0.0))
+lht(ModelFull, c(0, 0, 0, 1), rhs=c(0.0))
+```
+
+10. Working from the “full” model, test the null hypothesis that the partial regression coefficient for PROTEIN equals -3.0 versus a two-sided alternative.  In other words, test H0: B1 = -1 versus HA: B1 not-equal to -1.  Give a test statistic, p-value and conclusion.  (4 pts)  Note: One approach to this question uses the car package.  Remember you need to install a package the first time you use it and load the package every time you use it!
+
+```{r}
+lht(ModelFull, c(0, 0, 1, 0), rhs=c(-3.0))
+lht(ModelFull, c(0, 0, 1, 0), rhs=c(-1.0))
+```
+**Both -3 and -1 are in the question so I ran lht on both.
+The P-value for H0: B1 = -3.0 is 3.033e-12 so the null hypothesis is rejected. The P-value for H0: B1 = -1.0 is 0.1134 which is greater than 0.05 so the hypothesis failed to be rejected. This makes sense given that the coefficient value for PROTEIN is -0.8333 (an rhs value of -0.8333 gives a P-value of 1) which is close to -1.0 and suggests that -1.0 is inside the 95% confidense interval for PROTEIN and that -3.0 is not.
+
+11. Working from the “full” model, give 95% confidence intervals for each of the four Beta’s (intercept and three partial regression coefficients)
+
+```{r}
+confint(ModelFull, level = 0.95)
+```
